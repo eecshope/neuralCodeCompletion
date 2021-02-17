@@ -14,9 +14,10 @@ import tensorflow as tf
 
 import reader_pointer as reader
 
+from tqdm import tqdm
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 outfile = 'output_pointer_parent.txt'
 
 N_filename = '../pickle_data/JS_non_terminal.pickle'
@@ -124,6 +125,10 @@ class PTBInput(object):
         i = self.cur_pos
         self.cur_pos += 1
 
+        if i >= self.epoch_size:
+            self.cur_pos = 0
+            raise StopIteration
+
         ps = i * self.num_steps
         pe = ps + self.num_steps
 
@@ -135,6 +140,9 @@ class PTBInput(object):
         eof_indicator = np.equal(xn[:, self.num_steps - 1], self.eof_N_id)
 
         return xn, yn, xt, yt, xp, eof_indicator
+
+    def __len__(self):
+        return self.epoch_size
 
 
 class PTBModel(object):
@@ -377,7 +385,7 @@ def run_epoch(session, model, eval_op=None, verbose=False):
         fetches["eval_op"] = eval_op
 
     step = 0
-    for xn, yn, xt, yt, xp, _eof_indicator in model.input:
+    for xn, yn, xt, yt, xp, _eof_indicator in tqdm(model.input):
         step += 1
         feed_dict = {
             model.eof_indicator: _eof_indicator,
