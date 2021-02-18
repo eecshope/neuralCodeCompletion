@@ -5,17 +5,19 @@ import time
 
 from six.moves import cPickle as pickle
 
+JAVA_FULL = 837160621
+
 vocab_size = 10000
-total_length = 92758587  # JS: 160143814, PY 92758587
-freq_dict_filename = '../pickle_data/freq_dict_PY.pickle'
-target_filename = '../pickle_data/terminal_dict_10k_PY.pickle'
+total_length = JAVA_FULL  # JS: 160143814, PY 92758587
+freq_dict_filename = '../java_full/pkl_data/freq_dict.pkl'
+target_filename = '../java_full/pkl_data/terminal_dict.pkl'
 
 
 def restore_freq_dict(filename):
     with open(filename, 'rb') as f:
-        save = pickle.load(f)
-        freq_dict = save['freq_dict']
-        terminal_num = save['terminal_num']
+        saving = pickle.load(f)
+        freq_dict = saving['freq_dict']
+        terminal_num = saving['terminal_num']
         return freq_dict, terminal_num
 
 
@@ -39,10 +41,14 @@ def save(filename, terminal_dict, terminal_num, sorted_freq_dict):
         pickle.dump(save, f, protocol=2)
 
 
-if __name__ == '__main__':
+def main():
     start_time = time.time()
     freq_dict, terminal_num = restore_freq_dict(freq_dict_filename)
     print(freq_dict['EmptY'], freq_dict['empty'])
     terminal_dict, sorted_freq_dict = get_terminal_dict(vocab_size, freq_dict, True)
     save(target_filename, terminal_dict, terminal_num, sorted_freq_dict)
     print('Finishing generating terminal_dict and takes %.2f' % (time.time() - start_time))
+
+
+if __name__ == '__main__':
+    main()

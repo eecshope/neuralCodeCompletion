@@ -2,14 +2,16 @@
 
 import json
 import time
+import joblib
 from collections import Counter, defaultdict
 
-from six.moves import cPickle as pickle
+from tqdm import tqdm
 
 # attention line 42: for python dataset, not exclude the last one
-train_filename = '../json_data/programs_training.json'
-test_filename = '../json_data/programs_eval.json'
-target_filename = '../pickle_data/JS_non_terminal_small.pickle'
+train_filename = '../java_full/json_data/train_ast.json'
+test_filename = '../java_full/json_data/test_ast.json'
+valid_filename = '../java_full/json_data/valid_ast.json'
+target_filename = '../java_full/json_data/pkl_data/non_terminal.pkl'
 
 # global variables
 typeDict = dict()  # map N's name into its original ID(before expanding into 4*base_ID)
@@ -22,15 +24,11 @@ dicID = dict()  # map sparse id to dense id (remove empty id inside 4*base_ID)
 
 def process(filename):
     with open(filename, encoding='UTF-8') as lines:
-        print('Start procesing %s !!!' % (filename))
-        line_index = 0
+        print('Start processing %s !!!' % filename)
         corpus_N = list()
         corpus_parent = list()
 
-        for line in lines:
-            line_index += 1
-            if line_index % 1000 == 0:
-                print('Processing line: ', line_index)
+        for line in tqdm(lines):
             data = json.loads(line)
             line_N = list()
             has_sibling = Counter()
@@ -51,19 +49,20 @@ def process(filename):
                     base_ID = numType
                     numType = numType + 1
 
-                # expand the ID into the range of 4*base_ID, according to whether it has sibling or children. Sibling information is got by the ancestor's children information
+                # expand the ID into the range of 4*base_ID, according to whether it has sibling or children.
+                # Sibling information is got by the ancestor's children information
                 if 'children' in dic.keys():
                     if has_sibling[i]:
                         ID = base_ID * 4 + 3
                     else:
                         ID = base_ID * 4 + 2
 
-                    childs = dic['children']
-                    for j in childs:
+                    children = dic['children']
+                    for j in children:
                         parent_counter[j] = j - i
 
-                    if len(childs) > 1:
-                        for j in childs:
+                    if len(children) > 1:
+                        for j in children:
                             has_sibling[j] = 1
                 else:
                     if has_sibling[i]:
@@ -97,25 +96,29 @@ def map_dense_id(data):
     return result
 
 
-def save(filename, typeDict, numType, dicID, vocab_size, trainData, testData, trainParent, testParent, empty_set_dense):
+def save(filename, vocab_size, trainData, validData, testData, trainParent, validParent,
+         testParent):
     with open(filename, 'wb') as f:
-        save = {
+        savings = {
             # 'typeDict': typeDict,
             # 'numType': numType,
             # 'dicID': dicID,
             'vocab_size': vocab_size,
             'trainData': trainData,
+            'validData': validData,
             'testData': testData,
             'trainParent': trainParent,
+            'validParent': validParent,
             'testParent': testParent,
             # 'typeOnlyHasEmptyValue': empty_set_dense,
         }
-        pickle.dump(save, f, protocol=2)
+        joblib.dump(savings, f, protocol=2)
 
 
-if __name__ == '__main__':
+def main():
     start_time = time.time()
     trainData, trainParent = process(train_filename)
+    validData, validParent = process(valid_filename)
     testData, testParent = process(test_filename)
     trainData = map_dense_id(trainData)
     testData = map_dense_id(testData)
@@ -130,8 +133,12 @@ if __name__ == '__main__':
     for i in empty_set:
         empty_set_dense.add(dicID[i])
     print('The N set that can only has empty terminals: ', len(empty_set_dense), empty_set_dense)
-    print('The vocaburary:', vocab_size, numID)
+    print('The vocabulary:', vocab_size, numID)
 
-    save(target_filename, typeDict, numType, dicID, vocab_size, trainData, testData, trainParent, testParent,
-         empty_set_dense)
+    save(target_filename, vocab_size, trainData, validData, testData, trainParent,
+         validParent, testParent)
     print('Finishing generating terminals and takes %.2fs' % (time.time() - start_time))
+
+
+if __name__ == '__main__':
+    main()
