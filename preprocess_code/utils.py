@@ -68,7 +68,7 @@ def change_protocol_for_N(filename):
     f.close()
 
 
-def change_protocol_for_T(filename):
+def change_protocol_for_T(filename, target_filename):
     f = open(filename, 'rb')
     save = pickle.load(f)
     terminal_dict = save['terminal_dict']
