@@ -16,6 +16,8 @@ import reader_pointer as reader
 
 from tqdm import tqdm
 
+SAVE_PATH = '../saved/java_full/model-ckpt'
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 outfile = 'output_pointer_parent.txt'
@@ -422,13 +424,13 @@ def run_epoch(session, model, eval_op=None, verbose=False):
 
         if verbose and step % (model.input.epoch_size // 10) == 10:
             print("%.3f perplexity: %.3f accuracy: %.4f speed: %.0f wps" %
-                  (step * 1.0 / model.input.epoch_size, np.exp(costs / iters), np.mean(accuracy_list),
+                  (step * 1.0 / model.input.epoch_size, np.exp(costs / iters), np.mean(accuracy_list).data,
                    (time.time() - start_time)))
             # print ('zero_state value', zero_state[0][0])
             # print ('gradients value', session.run(model.grads))
 
     print('this run_epoch takes time %.2f' % (time.time() - start_time))
-    return np.exp(costs / iters), np.mean(accuracy_list)
+    return np.exp(costs / iters).data, np.mean(accuracy_list).data
 
 
 def main(_):
@@ -473,6 +475,11 @@ def main(_):
             with tf.variable_scope("Model", reuse=True, initializer=initializer):
                 mvalid = PTBModel(is_training=False, config=config, input_=valid_input)
 
+        with tf.name_scope("Test"):
+            test_input = PTBInput(config=config, data=test_data, name="TestInput")
+            with tf.variable_scope("Model", reuse=True, initializer=initializer):
+                mtest = PTBModel(is_training=False, config=config, input_=valid_input)
+
         # with tf.name_scope("Test"):
         #   test_input = PTBInput(config=eval_config, data=valid_data, name="TestInput")
         #   with tf.variable_scope("Model", reuse=True, initializer=initializer):
@@ -506,6 +513,7 @@ def main(_):
                     print("Epoch: %d Valid Perplexity: ~~%.3f Valid Accuracy: %.3f~" % (
                         i + 1, valid_perplexity, valid_accuracy), file=fout)
                     if valid_accuracy > max_valid:
+                        sv.saver.save(session, SAVE_PATH, i + 1)
                         max_valid = valid_accuracy
                         max_step = i + 1
 
@@ -522,6 +530,9 @@ def main(_):
             # if FLAGS.save_path:
             #   print("Saving model to %s." % FLAGS.save_path)
             #   save_path = saver.save(session, FLAGS.save_path, write_meta_graph=False, write_state=False)
+            sv.saver.restore(session, SAVE_PATH+'-'+str(max_step))
+            test_ppl, test_acc = run_epoch(session, mtest)
+            print("Test PPL: %.3f Test Accuracy: %.3f" % (test_ppl, test_acc))
 
 
 if __name__ == "__main__":

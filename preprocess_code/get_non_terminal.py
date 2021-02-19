@@ -12,7 +12,7 @@ from tqdm import tqdm
 train_filename = '../java_full/json_data/train_ast.json'
 test_filename = '../java_full/json_data/test_ast.json'
 valid_filename = '../java_full/json_data/valid_ast.json'
-target_filename = '../java_full/json_data/pkl_data/non_terminal.pkl'
+target_filename = '../java_full/pkl_data/non_terminal.pkl'
 
 # global variables
 typeDict = dict()  # map N's name into its original ID(before expanding into 4*base_ID)
