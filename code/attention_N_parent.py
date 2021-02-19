@@ -98,7 +98,7 @@ class PTBInput(object):
     self.attn_size = attn_size = config.attn_size
     self.num_steps = num_steps = config.num_steps
     self.input_dataN, self.targetsN, self.input_dataT, self.targetsT, self.epoch_size, self.eof_indicator, self.input_dataP = \
-            reader.data_producer(data, batch_size, num_steps, config.vocab_size, config.attn_size, change_yT=True, name=name)
+            reader.data_producer(data, batch_size, num_steps, config.vocab_size, change_yT=True, name=name)
     if FLAGS.model == "test":
       self.epoch_size = 16   #small epoch size for test
 

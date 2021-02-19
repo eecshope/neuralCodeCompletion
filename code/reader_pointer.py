@@ -12,46 +12,59 @@ from collections import Counter
 
 import numpy as np
 import tensorflow as tf
-from six.moves import cPickle as pickle
+import _pickle as pkl
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+VOCAB_SIZE = 10000
+ATTN_SIZE = 50
 
-def input_data(n_filename, t_filename):
+
+def get_non_terminal(n_filename):
     start_time = time.time()
     with open(n_filename, 'rb') as f:
         print("reading data from ", n_filename)
-        save = pickle.load(f)
+        save = pkl.load(f)
         train_data_n = save['trainData']
+        valid_data_n = save['validData']
         test_data_n = save['testData']
         train_data_p = save['trainParent']
+        valid_data_p = save['validParent']
         test_data_p = save['testParent']
         vocab_size_n = save['vocab_size']
         print('the vocab_sizeN is %d (not including the eof)' % vocab_size_n)
         print('the number of training data is %d' % (len(train_data_n)))
         print('the number of test data is %d\n' % (len(test_data_n)))
+        print("Finish reading non-terminal data. Time: %.2f" % (time.time() - start_time))
+    return train_data_n, valid_data_n, test_data_n, train_data_p, valid_data_p, test_data_p, vocab_size_n
+
+
+def get_terminal(t_filename):
+    start_time = time.time()
 
     with open(t_filename, 'rb') as f:
         print("reading data from ", t_filename)
-        save = pickle.load(f)
+        save = pkl.load(f)
         train_dataT = save['trainData']
+        valid_dataT = save['validData']
         test_dataT = save['testData']
-        vocab_sizeT = save['vocab_size']
-        attn_size = save['attn_size']
-        print('the vocab_sizeT is %d (not including the unk and eof)' % vocab_sizeT)
-        print('the attn_size is %d' % attn_size)
+        train_length = save['trainLength']
+        valid_length = save['validLength']
+        test_length = save['testLength']
+        print('the vocab_sizeT is %d (not including the unk and eof)' % VOCAB_SIZE)
+        print('the attn_size is %d' % ATTN_SIZE)
         print('the number of training data is %d' % (len(train_dataT)))
         print('the number of test data is %d' % (len(test_dataT)))
         print('Finish reading data and take %.2f\n' % (time.time() - start_time))
 
-    return train_data_n, test_data_n, vocab_size_n, train_dataT, test_dataT, vocab_sizeT, attn_size, train_data_p, test_data_p
+    return train_dataT, valid_dataT, test_dataT, train_length, valid_length, test_length, VOCAB_SIZE, ATTN_SIZE
 
 
-def data_producer(raw_data, batch_size, num_steps, vocab_size, attn_size, change_yT=False, name=None, verbose=False):
+def data_producer(raw_data, batch_size, num_steps, vocab_size, change_yT=False, name=None, verbose=False):
     start_time = time.time()
 
     with tf.name_scope(name, "DataProducer", [raw_data, batch_size, num_steps, vocab_size]):
-        (raw_dataN, raw_dataT, raw_dataP) = raw_data
+        (raw_dataN, raw_dataT, raw_dataP, raw_data_length) = raw_data
         assert len(raw_dataN) == len(raw_dataT)
 
         (vocab_sizeN, vocab_sizeT) = vocab_size
@@ -59,21 +72,31 @@ def data_producer(raw_data, batch_size, num_steps, vocab_size, attn_size, change
         eof_T_id = vocab_sizeT - 1
         unk_id = vocab_sizeT - 2
 
-        def padding_and_concat(data, width, pad_id):
+        def padding_and_concat(data, length=None, width=0, pad_id=0):
             # the size of data: a list of list. This function will pad the data according to width
             long_line = list()
-            for line in data:
-                pad_len = width - (len(line) % width)
-                new_line = line + [pad_id] * pad_len
-                assert len(new_line) % width == 0
-                long_line += new_line
-            return long_line
+            if length is None:
+                for line in data:
+                    pad_len = width - (len(line) % width)
+                    new_line = line + [pad_id] * pad_len
+                    assert len(new_line) % width == 0
+                    long_line += new_line
+                return np.asarray(long_line)
+            else:
+                start = 0
+                for end in length:
+                    line = data[start:end]
+                    start = end
+                    pad_len = width - (line.shape[0] % width)
+                    new_line = np.concatenate([line, np.array([pad_id]) * pad_len])
+                    long_line.append(new_line)
+                return np.concatenate(long_line)
 
         pad_start = time.time()
-        long_lineN = padding_and_concat(raw_dataN, num_steps, pad_id=eof_N_id)
-        long_lineT = padding_and_concat(raw_dataT, num_steps, pad_id=eof_T_id)
-        long_lineP = padding_and_concat(raw_dataP, num_steps, pad_id=1)
-        assert len(long_lineN) == len(long_lineT)
+        long_lineN = padding_and_concat(raw_dataN, None, num_steps, pad_id=eof_N_id)
+        long_lineT = padding_and_concat(raw_dataT, raw_data_length, num_steps, pad_id=eof_T_id)
+        long_lineP = padding_and_concat(raw_dataP, None, num_steps, pad_id=1)
+        assert long_lineN.shape[0] == long_lineT.shape[0]
         print('Pading three long lines and take %.2fs' % (time.time() - pad_start))
 
         # print statistics for long_lineT

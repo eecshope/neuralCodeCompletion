@@ -110,7 +110,7 @@ class PTBInput(object):
         self.unk_id = vocab_sizeT - 2
 
         self._dataN, self._dataP, self._dataT_x, self._dataT_y, self.epoch_size = \
-            reader.data_producer(data, batch_size, num_steps, config.vocab_size, config.attn_size, change_yT=False,
+            reader.data_producer(data, batch_size, num_steps, config.vocab_size, change_yT=False,
                                  name=name)  # epoch_size: how many batches to complete a epoch
         if FLAGS.model == "test":
             self.epoch_size = 16  # small epoch size for test
@@ -439,15 +439,21 @@ def main(_):
     print('Using dataset %s and %s' % (N_filename, T_filename), file=fout)
     print('condition on two, two layers', file=fout)
 
-    train_dataN, valid_dataN, vocab_sizeN, train_dataT, valid_dataT, vocab_sizeT, attn_size, train_dataP, valid_dataP \
-        = reader.input_data(N_filename, T_filename)
+    train_dataN, valid_dataN, test_dataN, \
+    train_dataP, valid_dataP, test_dataP, \
+    vocab_sizeN = reader.get_non_terminal(N_filename)
+    train_dataT, valid_dataT, test_dataT, \
+    train_length, valid_length, test_length, \
+    vocab_sizeT, attn_size = reader.get_terminal(T_filename)
 
-    train_data = (train_dataN, train_dataT, train_dataP)
-    valid_data = (valid_dataN, valid_dataT, valid_dataP)
+    train_data = (train_dataN, train_dataT, train_dataP, train_length)
+    valid_data = (valid_dataN, valid_dataT, valid_dataP, valid_length)
+    test_data = (test_dataN, test_dataT, test_dataP, test_length)
     vocab_size = (vocab_sizeN + 1, vocab_sizeT + 2)  # N is [w, eof], T is [w, unk, eof]
 
     config = get_config()
-    assert attn_size == config.attn_size  # make sure the attn_size used in generate terminal is the same as the configuration
+    assert attn_size == config.attn_size  # make sure the attn_size used in generate terminal is the same as the
+    # configuration
     config.vocab_size = vocab_size
     eval_config = get_config()
     eval_config.batch_size = config.batch_size * config.num_steps

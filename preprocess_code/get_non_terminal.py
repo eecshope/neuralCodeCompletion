@@ -3,6 +3,7 @@
 import json
 import time
 import joblib
+import _pickle as pkl
 from collections import Counter, defaultdict
 
 from tqdm import tqdm
@@ -38,7 +39,7 @@ def process(filename):
             if len(data) >= 3e4:
                 continue
 
-            for i, dic in enumerate(data[:-1]):  # JS data[:-1] or PY data
+            for i, dic in enumerate(data):  # JS data[:-1] or PY data
                 typeName = dic['type']
                 if typeName in typeList:
                     base_ID = typeDict[typeName]
@@ -112,7 +113,7 @@ def save(filename, vocab_size, trainData, validData, testData, trainParent, vali
             'testParent': testParent,
             # 'typeOnlyHasEmptyValue': empty_set_dense,
         }
-        joblib.dump(savings, f, protocol=2)
+        pkl.dump(savings, f, protocol=2)
 
 
 def main():
