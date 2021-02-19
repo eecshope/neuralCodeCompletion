@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import os
 import time
+import h5py
 from collections import Counter
 
 import numpy as np
@@ -42,15 +43,14 @@ def get_non_terminal(n_filename):
 def get_terminal(t_filename):
     start_time = time.time()
 
-    with open(t_filename, 'rb') as f:
+    with h5py.File(t_filename, "r") as db:
         print("reading data from ", t_filename)
-        save = pkl.load(f)
-        train_dataT = save['trainData']
-        valid_dataT = save['validData']
-        test_dataT = save['testData']
-        train_length = save['trainLength']
-        valid_length = save['validLength']
-        test_length = save['testLength']
+        train_dataT = db['trainData'][()]
+        valid_dataT = db['validData'][()]
+        test_dataT = db['testData'][()]
+        train_length = db['trainLength'][()]
+        valid_length = db['validLength'][()]
+        test_length = db['testLength'][()]
         print('the vocab_sizeT is %d (not including the unk and eof)' % VOCAB_SIZE)
         print('the attn_size is %d' % ATTN_SIZE)
         print('the number of training data is %d' % (len(train_dataT)))
@@ -65,7 +65,7 @@ def data_producer(raw_data, batch_size, num_steps, vocab_size, change_yT=False, 
 
     with tf.name_scope(name, "DataProducer", [raw_data, batch_size, num_steps, vocab_size]):
         (raw_dataN, raw_dataT, raw_dataP, raw_data_length) = raw_data
-        assert len(raw_dataN) == len(raw_dataT)
+        # assert len(raw_dataN) == len(raw_dataT)
 
         (vocab_sizeN, vocab_sizeT) = vocab_size
         eof_N_id = vocab_sizeN - 1
@@ -86,9 +86,9 @@ def data_producer(raw_data, batch_size, num_steps, vocab_size, change_yT=False, 
                 start = 0
                 for end in length:
                     line = data[start:end]
-                    start = end
+                    start += end
                     pad_len = width - (line.shape[0] % width)
-                    new_line = np.concatenate([line, np.array([pad_id]) * pad_len])
+                    new_line = np.concatenate([line, np.asarray([pad_id]*pad_len)])
                     long_line.append(new_line)
                 return np.concatenate(long_line)
 
@@ -96,6 +96,7 @@ def data_producer(raw_data, batch_size, num_steps, vocab_size, change_yT=False, 
         long_lineN = padding_and_concat(raw_dataN, None, num_steps, pad_id=eof_N_id)
         long_lineT = padding_and_concat(raw_dataT, raw_data_length, num_steps, pad_id=eof_T_id)
         long_lineP = padding_and_concat(raw_dataP, None, num_steps, pad_id=1)
+        print(long_lineN.shape[0], long_lineT.shape[0])
         assert long_lineN.shape[0] == long_lineT.shape[0]
         print('Pading three long lines and take %.2fs' % (time.time() - pad_start))
 

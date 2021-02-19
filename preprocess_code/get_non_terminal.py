@@ -122,6 +122,7 @@ def main():
     validData, validParent = process(valid_filename)
     testData, testParent = process(test_filename)
     trainData = map_dense_id(trainData)
+    validData = map_dense_id(validData)
     testData = map_dense_id(testData)
     vocab_size = len(numID)
     assert len(dicID) == vocab_size

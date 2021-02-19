@@ -22,8 +22,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 outfile = 'output_pointer_parent.txt'
 
-N_filename = '../pickle_data/JS_non_terminal.pickle'
-T_filename = '../pickle_data/JS_terminal_50k_whole.pickle'
+N_filename = '../java_full/non_terminal.pkl'
+T_filename = '../java_full/java_full_for_pointer.h5'
 
 flags = tf.flags
 flags.DEFINE_string("save_path", None,  # './logs/modelT0A'
@@ -424,13 +424,13 @@ def run_epoch(session, model, eval_op=None, verbose=False):
 
         if verbose and step % (model.input.epoch_size // 10) == 10:
             print("%.3f perplexity: %.3f accuracy: %.4f speed: %.0f wps" %
-                  (step * 1.0 / model.input.epoch_size, np.exp(costs / iters), np.mean(accuracy_list).data,
+                  (step * 1.0 / model.input.epoch_size, np.exp(costs / iters), np.mean(accuracy_list),
                    (time.time() - start_time)))
             # print ('zero_state value', zero_state[0][0])
             # print ('gradients value', session.run(model.grads))
 
     print('this run_epoch takes time %.2f' % (time.time() - start_time))
-    return np.exp(costs / iters).data, np.mean(accuracy_list).data
+    return np.exp(costs / iters), np.mean(accuracy_list)
 
 
 def main(_):
@@ -471,7 +471,7 @@ def main(_):
                 m = PTBModel(is_training=True, config=config, input_=train_input)
 
         with tf.name_scope("Valid"):
-            valid_input = PTBInput(config=config, data=valid_data, name="ValidInput")
+            valid_input = PTBInput(config=config, data=test_data, name="ValidInput")
             with tf.variable_scope("Model", reuse=True, initializer=initializer):
                 mvalid = PTBModel(is_training=False, config=config, input_=valid_input)
 
