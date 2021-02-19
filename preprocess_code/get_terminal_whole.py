@@ -12,7 +12,7 @@ from collections import deque
 
 
 # attention line 48: for python dataset, not exclude the last one
-terminal_dict_filename = '../java_full/pkl_data/terminal_dict.pickle'
+terminal_dict_filename = '../java_full/pkl_data/terminal_dict.pkl'
 train_filename = '../java_full/json_data/train_ast.json'
 valid_filename = '../java_full/json_data/valid_ast.json'
 test_filename = '../java_full/json_data/test_ast.json'
@@ -29,9 +29,10 @@ def restore_terminal_dict(filename):
         return terminal_dict, terminal_num, vocab_size  # vocab_size is 50k, and also the unk_id
 
 
-def process(filename, terminal_dict, unk_id, attn_size, verbose=False, is_train=False):
+def process(filename, terminal_dict, unk_id, attn_size, verbose=False):
     with open(filename, encoding='UTF-8') as lines:
         print('Start processing %s !!!' % filename)
+        terminal_length = list()
         terminal_corpus = list()
         attn_que = deque(maxlen=attn_size)
         attn_success_total = 0
@@ -74,6 +75,7 @@ def process(filename, terminal_dict, unk_id, attn_size, verbose=False, is_train=
                         terminal_line.append(terminal_dict['EmptY'])
                         attn_que.append('EmptY')
                 terminal_corpus.append(terminal_line)
+                terminal_length.append(len(terminal_line))
                 attn_success_total += attn_success_cnt
                 attn_fail_total += attn_fail_cnt
                 attn_total = attn_success_total + attn_fail_total
@@ -94,29 +96,28 @@ def process(filename, terminal_dict, unk_id, attn_size, verbose=False, is_train=
                 (attn_success_total, attn_fail_total, float(attn_success_total) / attn_fail_total, length_total,
                  float(attn_success_total) / length_total, float(attn_success_total + attn_fail_total) / length_total))
 
-        return terminal_corpus
+        return terminal_corpus, terminal_length
 
 
-def save(log_filename, h5_filename, terminal_num, vocab_size, attn_size, trainData, validData, testData):
-    with open(log_filename, "w") as file:
-        json.dump({'terminal_num': terminal_num,
-                   'vocab_size': vocab_size,
-                   'attn_size': attn_size}, file)
-
-    db = h5py.File(h5_filename, "w")
-    db.create_dataset("trainData", np.asarray(trainData))
-    db.create_dataset("validData", np.asarray(validData))
-    db.create_dataset("testData", np.asarray(testData))
+def save(db, data, length, name):
+    data = np.concatenate([np.asarray(ele) for ele in data])
+    db.create_dataset(name+"Data", data=data)
+    db.create_dataset(name+"Length", data=np.asarray(length))
 
 
 def main():
     start_time = time.time()
     attn_size = 50
     terminal_dict, terminal_num, vocab_size = restore_terminal_dict(terminal_dict_filename)
-    trainData = process(train_filename, terminal_dict, vocab_size, attn_size=attn_size, verbose=True, is_train=True)
-    validData = process(valid_filename, terminal_dict, vocab_size, attn_size=attn_size, verbose=True, is_train=False)
-    testData = process(test_filename, terminal_dict, vocab_size, attn_size=attn_size, verbose=True, is_train=False)
-    save(log_name, data_name, terminal_num, vocab_size, attn_size, trainData, validData, testData)
+    trainData = process(train_filename, terminal_dict, vocab_size, attn_size=attn_size, verbose=True)
+    validData = process(valid_filename, terminal_dict, vocab_size, attn_size=attn_size, verbose=True)
+    testData = process(test_filename, terminal_dict, vocab_size, attn_size=attn_size, verbose=True)
+
+    with h5py.File(data_name, "w") as db:
+        save(db, trainData[0], trainData[1], "train")
+        save(db, validData[0], validData[1], "valid")
+        save(db, testData[0], testData[1], "test")
+
     print('Finishing generating terminals and takes %.2f' % (time.time() - start_time))
 
 

@@ -110,23 +110,9 @@ def data_producer(raw_data, batch_size, num_steps, vocab_size, attn_size, change
             long_lineT_truncated_y[location_index] = unk_id
 
         # print('count of greater than eof', sum(long_lineT_truncated_y > eof_T_id))
-
-        """
-          tf_dataN = tf.convert_to_tensor(long_lineN_truncated, name="raw_dataN", dtype=tf.int32)
-          tf_dataP = tf.convert_to_tensor(long_lineP_truncated, name="raw_dataP", dtype=tf.int32)
-          tf_dataT_x = tf.convert_to_tensor(long_lineT_truncated_x, name="raw_dataT_x", dtype=tf.int32)
-          tf_dataT_y = tf.convert_to_tensor(long_lineT_truncated_y, name="raw_dataT_y", dtype=tf.int32)
-        """
-
         data_len = len(long_lineN_truncated)
         batch_len = data_len // batch_size
         # print ('the total data length is %d, batch_len is %d\n ' %(data_len, batch_len))
-        """
-          dataN = tf.reshape(tf_dataN[0 : batch_size * batch_len], [batch_size, batch_len])
-          dataP = tf.reshape(tf_dataP[0 : batch_size * batch_len], [batch_size, batch_len])
-          dataT_x = tf.reshape(tf_dataT_x[0 : batch_size * batch_len], [batch_size, batch_len])
-          dataT_y = tf.reshape(tf_dataT_y[0 : batch_size * batch_len], [batch_size, batch_len])
-        """
         dataN = np.reshape(long_lineN_truncated[0: batch_size * batch_len], [batch_size, batch_len])
         dataP = np.reshape(long_lineP_truncated[0: batch_size * batch_len], [batch_size, batch_len] )
         dataT_x = np.reshape(long_lineT_truncated_x[0: batch_size * batch_len], [batch_size, batch_len])
@@ -136,27 +122,6 @@ def data_producer(raw_data, batch_size, num_steps, vocab_size, attn_size, change
         assert epoch_size > 0
         # i = tf.train.range_input_producer(epoch_size, shuffle=False).dequeue()
         per_start = time.time()
-        """
-        xN = tf.strided_slice(dataN, [0, i * num_steps],
-                              [batch_size, (i + 1) * num_steps])
-        xN.set_shape([batch_size, num_steps])  # need to assert all values in x[a,:,1] are the same
-        yN = tf.strided_slice(dataN, [0, i * num_steps + 1],
-                              [batch_size, (i + 1) * num_steps + 1])
-        yN.set_shape([batch_size, num_steps])
-
-        xT = tf.strided_slice(dataT_x, [0, i * num_steps],
-                              [batch_size, (i + 1) * num_steps])
-        xT.set_shape([batch_size, num_steps])  # need to assert all values in x[a,:,1] are the same
-        yT = tf.strided_slice(dataT_y, [0, i * num_steps + 1],
-                              [batch_size, (i + 1) * num_steps + 1])
-        yT.set_shape([batch_size, num_steps])
-
-        xP = tf.strided_slice(dataP, [0, i * num_steps],
-                              [batch_size, (i + 1) * num_steps])
-        xP.set_shape([batch_size, num_steps])
-
-        eof_indicator = tf.equal(xN[:, num_steps - 1], tf.constant([eof_N_id] * batch_size))
-        """
         print('Finish preparing input producer and takes %.2fs' % (time.time() - start_time))
         print('Each produce data takes time %.2f\n' % (time.time() - per_start))
         return dataN, dataP, dataT_x, dataT_y, epoch_size
